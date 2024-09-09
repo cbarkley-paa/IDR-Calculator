@@ -1,0 +1,139 @@
+import React, { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+ 
+const IDRCalculator = () => {
+  const [winRate, setWinRate] = useState(80);
+  const [targetIncrease, setTargetIncrease] = useState(50);
+  const [results, setResults] = useState([]);
+ 
+  const COST_IF_WIN = 115;
+  const COST_IF_LOSE = 715;
+ 
+  const calculateProjectedCost = (winRate) => {
+    const loseRate = 100 - winRate;
+    return (winRate / 100 * COST_IF_WIN) + (loseRate / 100 * COST_IF_LOSE);
+  };
+ 
+  const calculateResults = () => {
+    const initialPayments = [200, 400, 600, 800, 1000, 1200, 1400];
+    const projectedCost = calculateProjectedCost(winRate);
+    const newResults = initialPayments.map(initialPayment => {
+      const targetWinAmount = (targetIncrease / 100) * initialPayment;
+      const weightedAverageWinAmount = (winRate / 100) * targetWinAmount;
+      const idrNetGain = weightedAverageWinAmount - projectedCost;
+      return {
+        initialPayment,
+        idrAsk: targetWinAmount,
+        averageIdrAwarded: weightedAverageWinAmount,
+        projectedCost,
+        idrNetGain
+      };
+    });
+    setResults(newResults);
+  };
+ 
+  useEffect(() => {
+    calculateResults();
+  }, [winRate, targetIncrease]);
+ 
+  const CustomizedDot = (props) => {
+    const { cx, cy, value } = props;
+    return (
+<circle cx={cx} cy={cy} r={4} fill={value >= 0 ? "green" : "red"} />
+    );
+  };
+ 
+  return (
+<div className="p-4 max-w-4xl mx-auto">
+<h1 className="text-2xl font-bold mb-4">Calculating Your Breakeven for Single Claim IDR Determinations</h1>
+<div className="grid grid-cols-2 gap-4 mb-6">
+<div>
+<label htmlFor="winRate" className="block mb-2 font-semibold">Win Rate (%)</label>
+<input
+            id="winRate"
+            type="number"
+            value={winRate}
+            onChange={(e) => setWinRate(Number(e.target.value))}
+            className="w-full p-2 border rounded"
+          />
+<p className="text-sm text-gray-600 mt-1">This is your expected success rate in IDR determinations.</p>
+</div>
+<div>
+<label htmlFor="targetIncrease" className="block mb-2 font-semibold">Target % Increase</label>
+<input
+            id="targetIncrease"
+            type="number"
+            value={targetIncrease}
+            onChange={(e) => setTargetIncrease(Number(e.target.value))}
+            className="w-full p-2 border rounded"
+          />
+<p className="text-sm text-gray-600 mt-1">This is the average amount you want to increase your claim reimbursement by. For example if you get paid $100 initially by the Payer and you are targeting $150 through IDR, then your Target % Increase is 50%.</p>
+</div>
+</div>
+ 
+      <div className="mb-6">
+<h2 className="text-lg font-semibold mb-2">Projected Cost per Dispute</h2>
+<p className="text-xl font-bold">${Math.round(calculateProjectedCost(winRate))}</p>
+<p className="text-sm text-gray-600 mt-2">
+          Calculation: (Win Rate % × ${COST_IF_WIN}) + (Lose Rate % × ${COST_IF_LOSE})
+</p>
+<ul className="list-disc list-inside text-sm text-gray-600 mt-2">
+<li>If you win, you only pay the $115 Admin Fee</li>
+<li>If you lose, you pay the $115 Admin Fee and IDR Entity Fee (median = $600)</li>
+</ul>
+</div>
+ 
+      <div className="overflow-x-auto mb-6">
+<table className="w-full border-collapse border">
+<thead>
+<tr className="bg-gray-100">
+<th className="border p-2 text-center">Initial Payment Amount</th>
+<th className="border p-2 text-center">IDR Ask Above Initial Payment Amount</th>
+<th className="border p-2 text-center">Average IDR Awarded Amount</th>
+<th className="border p-2 text-center">Projected Cost per Dispute</th>
+<th className="border p-2 text-center">IDR Net Gain</th>
+</tr>
+</thead>
+<tbody>
+            {results.map((row, index) => (
+<tr key={index}>
+<td className="border p-2 text-center">${Math.round(row.initialPayment)}</td>
+<td className="border p-2 text-center">${Math.round(row.idrAsk)}</td>
+<td className="border p-2 text-center">${Math.round(row.averageIdrAwarded)}</td>
+<td className="border p-2 text-center">${Math.round(row.projectedCost)}</td>
+<td 
+                  className={`border p-2 text-center ${row.idrNetGain >= 0 ? 'text-green-600' : 'text-red-600'}`}
+>
+                  ${Math.round(row.idrNetGain)}
+</td>
+</tr>
+            ))}
+</tbody>
+</table>
+</div>
+ 
+      <div className="h-80 mb-6">
+<ResponsiveContainer width="100%" height="100%">
+<LineChart data={results}>
+<CartesianGrid strokeDasharray="3 3" />
+<XAxis dataKey="initialPayment" label={{ value: 'Initial Payment Amount', position: 'bottom', offset: 0 }} />
+<YAxis label={{ value: 'Net Gain', angle: -90, position: 'insideLeft' }} />
+<Tooltip />
+<Legend />
+<ReferenceLine y={0} stroke="#000" />
+<Line 
+              type="monotone" 
+              dataKey="idrNetGain" 
+              name="Net Gain" 
+              dot={<CustomizedDot />}
+              strokeWidth={2}
+              stroke={(dataPoint) => dataPoint.idrNetGain >= 0 ? "green" : "red"}
+            />
+</LineChart>
+</ResponsiveContainer>
+</div>
+</div>
+  );
+};
+ 
+export default IDRCalculator;
